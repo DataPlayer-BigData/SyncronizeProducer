@@ -1,0 +1,126 @@
+SynchronizeProducer : This is an example of sending simple string message to topic using Synchronize method
+
+1) Create Maven Project
+2) Write all dependencies in maven (pom.xml) file
+3) Clean and refresh Maven.
+4) Create package(i.e tu.cit.examples.producerapis) and write SynchronizeProducer.java
+5) Add your class name (i.e, SynchronizeProducer) in pom.xml file in <mainfest> under <build>
+6) Create log4j2.xml file under src/main/java/resources
+7) Write your code in SynchronizeProducer.java
+   a) Set producer properties
+   b) Create KafkaProducer
+   c) Send Record and print the METADATA return by the synchronize send() of producer.
+   d) If you want to add log information so add logger as needed as well.
+
+
+
+---------------------------------------------------------------------------
+OBJECTIVE OF THIS TUTORIAL
+1) Explore, understand synchronization SEND call successfully and print the METADATA returned by the synchronize send call.
+2) Explore, understand synchronization SEND call unsuccessful and raise the exception. Testing on shutting down all brokers or one of the broker and explore the behaviour of synchronize send  of producer.
+3) Explore max.block.ms Producer configuration.
+4) Disconnect the network of any of the brokers and explore the behaviour of synchronize send call of producer.
+
+
+
+CASE 1 :
+    a) Start zookeeper, start all 3 brokers, create topic
+    b) Run SyncronizeProducer.java
+    c) Investigate output using kafka-console-consumer using below command:
+        kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning --property print.key=true
+
+Case 2:
+    a) Run the SyncronizeProducerCASE2.java
+    b) Shutdown any one of the broker. - It will cause NotEnoughReplicasException
+
+Case 3:
+    a) shutdown all the servers
+    b) run the SyncronizeProducerCASE3.java and observe the WARN message. It will take 60 seconds to raise an exception.
+    c) if you want to increase/decrease this time, max.block.ms producer configuration can be set. default value is 60,000ms.
+
+Case 3:
+    Here, we observer that KEY1 and KEY2 to goes to partition 2. And KEY 3 goes to partition 0.
+    it means that HASH(KEY1) % #partitions and HASH(KEY2) % #partitions returning the same partition number i.e 2.
+    And HASH(KEY3) % #partitions is returning the partition number 0. Hence, KEY3 is going to partition number 0.
+    ACKS_CONFIG=1 means, producer will wait until message is written to leader at least. If the leader of a particular partition is down, It will throw an error as well.
+
+    a) Check the leader of corresponding partitions.
+    b) Run the SyncronizeProducer.java
+    c) Shutdown the leader broker-id 1. I check, leader broker of partition 0 is broker 1. KEY 3 is being sent to leader to write. In this case, producer fails.
+
+CASE 4: Need to run brokers on multiple machines and disconnect.
+
+CASE 5: Not done
+    a) Start all brokers
+    b) Revoke the write permission of  any  broker for example /home/shabbir/kafka_2.11-2.4.0/data/kafka0
+        $chmod a-w kafka0
+    c) Run SyncronizeProducer.java
+
+SUMMARY
+If you want to explore more about KAFKA PRODUCER, visit below links
+//https://kafka.apache.org/documentation/#producerconfigs
+//https://kafka.apache.org/25/javadoc/index.html?org/apache/kafka/clients/producer/KafkaProducer.html
+//https://downloads.apache.org/kafka/2.4.0/javadoc/org/apache/kafka/clients/producer/ProducerConfig.html
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------------------
+ls /brokers/ids
+ls /brokers/topics
+get /controller
+
+-----------------------------------------------
+KAFKA-CONSOLE-CONSUMER
+Print value with key
+----------------------
+kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic sync-producer --from-beginning --property print.key=true
+kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic sync-producer --partition 1 --offset 0 --property print.key=true
+
+kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 --topic test --from-beginning \
+--formatter kafka.tools.DefaultMessageFormatter \
+--property print.key=true
+
+kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 --topic test --from-beginning \
+--formatter kafka.tools.DefaultMessageFormatter \
+--property print.key=true
+--property print.value=true
+
+kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 --topic test --from-beginning \
+--formatter kafka.tools.DefaultMessageFormatter \
+--property print.key=true
+--property print.value=true
+--property key.deserializer=org.apache.kafka.common.serialization.IntegerDeserializer
+
+kafka-console-consumer.sh \
+--bootstrap-server localhost:9092 --topic test --from-beginning \
+--formatter kafka.tools.DefaultMessageFormatter \
+--property print.key=true
+--property print.value=true
+--property key.deserializer=org.apache.kafka.common.serialization.IntegerDeserializer
+--max-messages 10
+
+-----------------------------------------------------------------------------------------------------------------
+
+TIMESTAMP
+Broker Configuration
+Add the following two configurations to broker
+message.timestamp.type=CreateTime|LogAppendTime|ProcessTime
+max.message.time.difference.ms=Long.MaxValue
+
+Add a time field to both ProducerRecord and ConsumerRecord
+-If user specify the timestamp for a ProducerRecord, the ProducerRecord will be sent with this timestamp.
+-If user does not specify the timestamp for a ProducerRecord, the producer stamp the ProducerRecord with current time.
+-ConsumerRecord will have the timestamp of the message that were stored on broker.
+
+Add a timestamp field to RecordMetadata
+-The timestamp in record metadata will be LongAppendTime if it is returned from broker, or it will be the timestamp set by user in ProducerRecord.
+- When producer invodes the callback for a message, the timestamp will be available through RecordMetadata.
